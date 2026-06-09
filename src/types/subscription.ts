@@ -1,5 +1,18 @@
 export type SubscriptionPlan = 'starter' | 'pro' | 'enterprise' | 'government';
 
+// ✅ Interface Subscription manquante — ajoutée
+export interface Subscription {
+  id: string;
+  tenant_id: string;
+  plan: SubscriptionPlan;
+  status: 'active' | 'inactive' | 'cancelled' | 'trial';
+  current_period_start: string;
+  current_period_end: string;
+  cancel_at_period_end: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Plan {
   id: SubscriptionPlan;
   name: string;

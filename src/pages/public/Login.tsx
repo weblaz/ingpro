@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../supabase/client';
 import { toast } from 'react-toastify';
 import { TrendingUp, Eye, EyeOff, Loader2, Copy, ChevronDown, ChevronUp, LogIn } from 'lucide-react';
 
 const DEMO_ACCOUNTS = [
-  { label: 'Super Admin', email: 'admin@ingi-synertran.com', password: 'Demo2025!', role: 'super_admin', plan: 'Government' },
-  { label: 'Tenant Admin (Total DZ)', email: 'ahmed.benali@total.dz', password: 'Demo2025!', role: 'tenant_admin', plan: 'Enterprise' },
-  { label: 'Chef de Projet (Aramco)', email: 'pm@aramco-dz.com', password: 'Demo2025!', role: 'project_manager', plan: 'Pro' },
-  { label: 'Viewer (Starter)', email: 'viewer@startup.dz', password: 'Demo2025!', role: 'viewer', plan: 'Starter' },
-  { label: 'Admin Gouvernement', email: 'gov@ministere-industrie.dz', password: 'Demo2025!', role: 'tenant_admin', plan: 'Government' },
+  { label: 'Super Admin', email: 'admin@ingi-synertran.com', role: 'super_admin', plan: 'Government' },
+  { label: 'Tenant Admin (Enterprise)', email: 'enterprise@ingi-synertran.com', role: 'tenant_admin', plan: 'Enterprise' },
+  { label: 'Tenant Admin (Pro)', email: 'pro@ingi-synertran.com', role: 'tenant_admin', plan: 'Pro' },
+  { label: 'Tenant Admin (Starter)', email: 'starter@ingi-synertran.com', role: 'tenant_admin', plan: 'Starter' },
+  { label: 'Admin Gouvernement', email: 'government@ingi-synertran.com', role: 'super_admin', plan: 'Government' },
 ];
 
 const Login: React.FC = () => {
@@ -21,6 +22,7 @@ const Login: React.FC = () => {
   const [remember, setRemember] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showDemo, setShowDemo] = useState(true);
+  const [resetLoading, setResetLoading] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,21 +31,39 @@ const Login: React.FC = () => {
       await login(email, password);
       navigate('/dashboard');
     } catch (err: any) {
-      toast.error('Email ou mot de passe incorrect');
+      if (err.message?.includes('Invalid login credentials')) {
+        toast.error('Email ou mot de passe incorrect');
+      } else if (err.message?.includes('Email not confirmed')) {
+        toast.error('Veuillez confirmer votre email avant de vous connecter');
+      } else {
+        toast.error('Erreur lors de la connexion');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const handleQuickLogin = async (acc: typeof DEMO_ACCOUNTS[0]) => {
-    setLoading(true);
+  const handleFillCredentials = (acc: typeof DEMO_ACCOUNTS[0]) => {
+    setEmail(acc.email);
+    setPassword('Demo2025!');
+  };
+
+  const handleResetPassword = async () => {
+    if (!email) {
+      toast.error('Entrez votre email pour réinitialiser le mot de passe');
+      return;
+    }
+    setResetLoading(true);
     try {
-      await login(acc.email, acc.password);
-      navigate('/dashboard');
-    } catch {
-      toast.error('Erreur de connexion');
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/login`,
+      });
+      if (error) throw error;
+      toast.success('Email de réinitialisation envoyé ! Vérifiez votre boîte mail.');
+    } catch (err: any) {
+      toast.error(err.message || 'Erreur lors de l\'envoi');
     } finally {
-      setLoading(false);
+      setResetLoading(false);
     }
   };
 
@@ -67,7 +87,7 @@ const Login: React.FC = () => {
           Certifiez vos partenaires, gérez vos talents et pilotez votre conformité ESG — tout en un.
         </p>
         <div className="space-y-3">
-          {['2,847+ entreprises certifiées', '15 langues supportées', 'Architecture multi-tenant sécurisée', 'Blockchain Ethereum intégrée'].map(f => (
+          {['Passeport entreprise certifié blockchain', '15 langues supportées', 'Architecture multi-tenant sécurisée', 'Conformité ESG & contenu local'].map(f => (
             <div key={f} className="flex items-center space-x-2 text-gray-200">
               <span className="w-1.5 h-1.5 bg-teal-400 rounded-full flex-shrink-0"></span>
               <span className="text-sm">{f}</span>
@@ -122,7 +142,14 @@ const Login: React.FC = () => {
                 <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} className="w-4 h-4 text-[#0D2B55] rounded" />
                 <span className="text-sm text-gray-600">Se souvenir de moi</span>
               </label>
-              <a href="#" className="text-sm text-[#0D2B55] hover:underline">Mot de passe oublié ?</a>
+              <button
+                type="button"
+                onClick={handleResetPassword}
+                disabled={resetLoading}
+                className="text-sm text-[#0D2B55] hover:underline disabled:opacity-50"
+              >
+                {resetLoading ? 'Envoi...' : 'Mot de passe oublié ?'}
+              </button>
             </div>
             <button
               type="submit"
@@ -145,6 +172,9 @@ const Login: React.FC = () => {
             </button>
             {showDemo && (
               <div className="divide-y divide-gray-100">
+                <div className="px-4 py-2 bg-blue-50 text-xs text-blue-700">
+                  Mot de passe pour tous les comptes démo : <span className="font-mono font-bold">Demo2025!</span>
+                </div>
                 {DEMO_ACCOUNTS.map(acc => (
                   <div key={acc.email} className="flex items-center justify-between px-4 py-2.5">
                     <div>
@@ -159,11 +189,11 @@ const Login: React.FC = () => {
                     <div className="flex items-center space-x-2">
                       <span className="text-xs bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full font-medium">{acc.plan}</span>
                       <button
-                        onClick={() => handleQuickLogin(acc)}
+                        onClick={() => handleFillCredentials(acc)}
                         disabled={loading}
                         className="text-xs px-2.5 py-1 bg-[#0D2B55] text-white rounded-lg hover:bg-[#1a3f6f] transition-colors disabled:opacity-50"
                       >
-                        Connexion rapide
+                        Remplir
                       </button>
                     </div>
                   </div>

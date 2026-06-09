@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
-import { Mail, Phone, MapPin, Send, CheckCircle2 } from 'lucide-react';
+import { supabase } from '../../supabase/client';
+import { toast } from 'react-toastify';
+import { Mail, Phone, MapPin, Send, CheckCircle2, Loader2 } from 'lucide-react';
 
 const Contact: React.FC = () => {
   const [form, setForm] = useState({ name: '', email: '', company: '', message: '' });
@@ -11,9 +13,22 @@ const Contact: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    await new Promise(r => setTimeout(r, 1500));
-    setLoading(false);
-    setSent(true);
+    try {
+      const { error } = await supabase.from('contact_messages').insert({
+        name: form.name,
+        email: form.email,
+        company: form.company || null,
+        message: form.message,
+        status: 'new',
+      });
+      if (error) throw error;
+      setSent(true);
+      toast.success('Message envoyé avec succès !');
+    } catch (err: any) {
+      toast.error(err.message || 'Erreur lors de l\'envoi du message');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -36,6 +51,12 @@ const Contact: React.FC = () => {
                 <CheckCircle2 className="w-16 h-16 text-green-500 mb-4" />
                 <h3 className="text-xl font-bold text-gray-900 mb-2">Message envoyé !</h3>
                 <p className="text-gray-500">Notre équipe vous contactera dans les 24 heures.</p>
+                <button
+                  onClick={() => { setSent(false); setForm({ name: '', email: '', company: '', message: '' }); }}
+                  className="mt-6 text-sm text-[#0D2B55] hover:underline font-medium"
+                >
+                  Envoyer un autre message
+                </button>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -58,7 +79,7 @@ const Contact: React.FC = () => {
                   <textarea required rows={5} value={form.message} onChange={e => setForm({...form, message: e.target.value})} className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0D2B55]" placeholder="Décrivez votre besoin..." />
                 </div>
                 <button type="submit" disabled={loading} className="flex items-center space-x-2 px-6 py-3 bg-[#0D2B55] text-white text-sm font-semibold rounded-xl hover:bg-[#1a3f6f] transition-colors disabled:opacity-50">
-                  <Send className="w-4 h-4" />
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                   <span>{loading ? 'Envoi...' : 'Envoyer le message'}</span>
                 </button>
               </form>

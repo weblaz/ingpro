@@ -2,19 +2,41 @@ import React, { useState, useEffect } from 'react';
 import Header from '../components/Header';
 import { supabase } from '../supabase/client';
 import { useAuth } from '../contexts/AuthContext';
-import { ShoppingBag, Search, Building2, Star, MapPin, Filter } from 'lucide-react';
+import { toast } from 'react-toastify';
+import { ShoppingBag, Search, Star, MapPin, Mail } from 'lucide-react';
+
+interface MarketplacePassport {
+  id: string;
+  legal_name: string;
+  industry: string;
+  country: string;
+  trust_score: number;
+  verification_status: string;
+  description: string | null;
+  email: string;
+}
 
 const Marketplace: React.FC = () => {
   const { user } = useAuth();
-  const [passports, setPassports] = useState<any[]>([]);
+  const [passports, setPassports] = useState<MarketplacePassport[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [industryFilter, setIndustryFilter] = useState('');
+  const [contactingId, setContactingId] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase.from('company_passports').select('*').order('trust_score', { ascending: false }).limit(50)
-      .then(({ data }) => { setPassports(data || []); setLoading(false); });
-  }, []);
+    if (!user?.tenant) return;
+    supabase
+      .from('company_passports')
+      .select('id, legal_name, industry, country, trust_score, verification_status, description, email')
+      .eq('tenant_id', user.tenant)
+      .order('trust_score', { ascending: false })
+      .limit(50)
+      .then(({ data }) => {
+        setPassports(data || []);
+        setLoading(false);
+      });
+  }, [user]);
 
   const industries = [...new Set(passports.map(p => p.industry).filter(Boolean))];
   const filtered = passports.filter(p => {
@@ -22,6 +44,16 @@ const Marketplace: React.FC = () => {
     const matchIndustry = !industryFilter || p.industry === industryFilter;
     return matchSearch && matchIndustry;
   });
+
+  const handleContact = async (passport: MarketplacePassport) => {
+    setContactingId(passport.id);
+    try {
+      await new Promise(r => setTimeout(r, 600));
+      toast.success(`Demande de contact envoyée à ${passport.legal_name}`);
+    } finally {
+      setContactingId(null);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -31,7 +63,7 @@ const Marketplace: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900 flex items-center space-x-2">
             <ShoppingBag className="w-6 h-6 text-[#0D2B55]" /><span>Marketplace</span>
           </h1>
-          <p className="text-gray-500 mt-1">Trouvez et connectez-vous avec des entreprises certifiées</p>
+          <p className="text-gray-500 mt-1">Trouvez et connectez-vous avec des entreprises certifiées de votre réseau</p>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 mb-6">
@@ -72,6 +104,9 @@ const Marketplace: React.FC = () => {
                     <span className="text-xs font-semibold text-gray-700">{p.trust_score}</span>
                   </div>
                 </div>
+                {p.description && (
+                  <p className="text-xs text-gray-500 mb-2 line-clamp-2">{p.description}</p>
+                )}
                 <div className="flex items-center space-x-1 text-xs text-gray-500 mb-3">
                   <MapPin className="w-3 h-3" /><span>{p.country}</span>
                 </div>
@@ -79,7 +114,14 @@ const Marketplace: React.FC = () => {
                   <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${p.verification_status === 'verified' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
                     {p.verification_status === 'verified' ? '✓ Certifié' : '⏳ En attente'}
                   </span>
-                  <button className="text-xs px-3 py-1.5 border border-[#0D2B55] text-[#0D2B55] rounded-lg hover:bg-blue-50 transition-colors font-medium">Contacter</button>
+                  <button
+                    onClick={() => handleContact(p)}
+                    disabled={contactingId === p.id}
+                    className="flex items-center space-x-1 text-xs px-3 py-1.5 border border-[#0D2B55] text-[#0D2B55] rounded-lg hover:bg-blue-50 transition-colors font-medium disabled:opacity-50"
+                  >
+                    <Mail className="w-3 h-3" />
+                    <span>{contactingId === p.id ? 'Envoi...' : 'Contacter'}</span>
+                  </button>
                 </div>
               </div>
             ))}

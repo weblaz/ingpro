@@ -1,40 +1,19 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import Header from '../components/Header';
-import { useAuth } from '../contexts/AuthContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
-import { supabase } from '../supabase/client';
-import { toast } from 'react-toastify';
-import { TrendingUp, CheckCircle2, ArrowRight, Loader2 } from 'lucide-react';
+import { TrendingUp, CheckCircle2, ArrowRight, Lock, Phone } from 'lucide-react';
 import { PLANS } from '../types/subscription';
 
 const UpgradePlan: React.FC = () => {
-  const { user } = useAuth();
   const { plan } = useSubscription();
   const [searchParams] = useSearchParams();
-  const [loading, setLoading] = useState<string | null>(null);
   const highlighted = searchParams.get('plan') || 'pro';
 
   const upgradablePlans = PLANS.filter(p => {
     const order = ['starter', 'pro', 'enterprise', 'government'];
     return order.indexOf(p.id) > order.indexOf(plan);
   });
-
-  const handleUpgrade = async (planId: string) => {
-    if (planId === 'government') { window.location.href = '/contact?plan=government'; return; }
-    if (!user?.tenant) return;
-    setLoading(planId);
-    try {
-      const { error } = await supabase.from('tenants').update({ subscription_plan: planId }).eq('id', user.tenant);
-      if (error) throw error;
-      toast.success(`Félicitations ! Plan ${planId} activé.`);
-      window.location.href = '/dashboard';
-    } catch (err: any) {
-      toast.error(err.message || 'Erreur');
-    } finally {
-      setLoading(null);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -47,6 +26,17 @@ const UpgradePlan: React.FC = () => {
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-3">Passez à la vitesse supérieure</h1>
           <p className="text-gray-500">Débloquez tous les modules pour transformer votre gouvernance industrielle</p>
+        </div>
+
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-8 flex items-start space-x-3">
+          <Lock className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-amber-800">Mise à niveau sécurisée</p>
+            <p className="text-xs text-amber-700 mt-0.5">
+              Les changements de plan sont traités via notre équipe commerciale pour garantir la sécurité de votre abonnement.
+              Contactez-nous pour activer votre nouveau plan immédiatement.
+            </p>
+          </div>
         </div>
 
         {upgradablePlans.length === 0 ? (
@@ -82,14 +72,13 @@ const UpgradePlan: React.FC = () => {
                     </li>
                   ))}
                 </ul>
-                <button
-                  onClick={() => handleUpgrade(p.id)}
-                  disabled={loading === p.id}
-                  className={`w-full flex items-center justify-center space-x-2 py-3 rounded-xl font-semibold text-sm transition-colors disabled:opacity-50 ${p.id === highlighted ? 'bg-[#0D2B55] text-white hover:bg-[#1a3f6f]' : 'border-2 border-[#0D2B55] text-[#0D2B55] hover:bg-blue-50'}`}
+                <Link
+                  to={`/contact?plan=${p.id}`}
+                  className={`w-full flex items-center justify-center space-x-2 py-3 rounded-xl font-semibold text-sm transition-colors ${p.id === highlighted ? 'bg-[#0D2B55] text-white hover:bg-[#1a3f6f]' : 'border-2 border-[#0D2B55] text-[#0D2B55] hover:bg-blue-50'}`}
                 >
-                  {loading === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
-                  <span>{loading === p.id ? 'Activation...' : p.id === 'government' ? 'Nous contacter' : `Passer au ${p.name}`}</span>
-                </button>
+                  <Phone className="w-4 h-4" />
+                  <span>Contacter l'équipe commerciale</span>
+                </Link>
               </div>
             ))}
           </div>

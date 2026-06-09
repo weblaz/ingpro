@@ -1,17 +1,51 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Header from '../components/Header';
 import DashboardCard from '../components/DashboardCard';
 import { useAuth } from '../contexts/AuthContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
+import { supabase } from '../supabase/client';
 import {
   Building2, Briefcase, Users, BookOpen, BarChart3, MapPin,
   ArrowRight, Shield, TrendingUp, Globe
 } from 'lucide-react';
 
+interface DashboardStats {
+  companies: number;
+  projects: number;
+  talents: number;
+  trainings: number;
+}
+
 const Home: React.FC = () => {
   const { user } = useAuth();
   const { plan, hasAccess } = useSubscription();
+  const [stats, setStats] = useState<DashboardStats>({ companies: 0, projects: 0, talents: 0, trainings: 0 });
+  const [statsLoading, setStatsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const [companiesRes, projectsRes, talentsRes, trainingsRes] = await Promise.all([
+          supabase.from('company_passports').select('*', { count: 'exact', head: true }),
+          supabase.from('subcontracting_projects').select('*', { count: 'exact', head: true }).eq('status', 'open'),
+          supabase.from('talents').select('*', { count: 'exact', head: true }),
+          supabase.from('trainings').select('*', { count: 'exact', head: true }).in('status', ['published', 'upcoming', 'ongoing']),
+        ]);
+        setStats({
+          companies: companiesRes.count || 0,
+          projects: projectsRes.count || 0,
+          talents: talentsRes.count || 0,
+          trainings: trainingsRes.count || 0,
+        });
+      } catch {
+        setStats({ companies: 0, projects: 0, talents: 0, trainings: 0 });
+      } finally {
+        setStatsLoading(false);
+      }
+    };
+    fetchStats();
+  }, []);
 
   const modules = [
     { icon: Building2, title: 'Passeport Entreprise', desc: 'Certifiez vos partenaires', to: '/passeport', module: 'passeport', color: 'blue' as const },
@@ -27,12 +61,13 @@ const Home: React.FC = () => {
   const accessibleModules = modules.filter(m => hasAccess(m.module));
   const lockedModules = modules.filter(m => !hasAccess(m.module));
 
+  const formatCount = (n: number) => n.toLocaleString('fr-FR');
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
-        {/* Welcome */}
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-900">
             Bonjour, {user?.firstName || 'Utilisateur'} 👋
@@ -47,15 +82,37 @@ const Home: React.FC = () => {
           </p>
         </div>
 
-        {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <DashboardCard title="Entreprises certifiées" value="2,847" icon={<Building2 className="w-5 h-5" />} trend={12} color="blue" />
-          <DashboardCard title="Projets actifs" value="1,234" icon={<Briefcase className="w-5 h-5" />} trend={8} color="green" />
-          <DashboardCard title="Talents enregistrés" value="15,892" icon={<Users className="w-5 h-5" />} trend={24} color="purple" />
-          <DashboardCard title="Formations" value="456" icon={<BookOpen className="w-5 h-5" />} trend={5} color="orange" />
+          <DashboardCard
+            title="Entreprises certifiées"
+            value={statsLoading ? '—' : formatCount(stats.companies)}
+            icon={<Building2 className="w-5 h-5" />}
+            trend={12}
+            color="blue"
+          />
+          <DashboardCard
+            title="Projets actifs"
+            value={statsLoading ? '—' : formatCount(stats.projects)}
+            icon={<Briefcase className="w-5 h-5" />}
+            trend={8}
+            color="green"
+          />
+          <DashboardCard
+            title="Talents enregistrés"
+            value={statsLoading ? '—' : formatCount(stats.talents)}
+            icon={<Users className="w-5 h-5" />}
+            trend={24}
+            color="purple"
+          />
+          <DashboardCard
+            title="Formations"
+            value={statsLoading ? '—' : formatCount(stats.trainings)}
+            icon={<BookOpen className="w-5 h-5" />}
+            trend={5}
+            color="orange"
+          />
         </div>
 
-        {/* Accessible modules */}
         {accessibleModules.length > 0 && (
           <div className="mb-8">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Vos modules</h2>
@@ -84,7 +141,6 @@ const Home: React.FC = () => {
           </div>
         )}
 
-        {/* Locked modules */}
         {lockedModules.length > 0 && (
           <div>
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Modules disponibles avec un plan supérieur</h2>
@@ -114,7 +170,6 @@ const Home: React.FC = () => {
           </div>
         )}
 
-        {/* Quick links */}
         <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
           <Link to="/marketplace" className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-shadow flex items-center space-x-3">
             <div className="p-2 bg-indigo-50 rounded-lg"><TrendingUp className="w-5 h-5 text-indigo-600" /></div>

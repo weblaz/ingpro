@@ -6,7 +6,7 @@ interface User {
   email: string;
   firstName: string;
   lastName: string;
-  role: 'super_admin' | 'tenant_admin' | 'project_manager' | 'viewer';
+  role: 'super_admin' | 'admin' | 'manager' | 'user' | 'talent' | 'supplier';
   tenant?: string;
   plan?: 'starter' | 'pro' | 'enterprise' | 'government';
 }
@@ -17,36 +17,57 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   isAuthenticated: () => boolean;
+  getDashboardRoute: () => string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Redirection par rôle
+export const getDashboardByRole = (role: string): string => {
+  switch (role) {
+    case 'super_admin':   return '/super-admin/dashboard';
+    case 'admin':         return '/dashboard';
+    case 'manager':       return '/dashboard';
+    case 'supplier':      return '/supplier/dashboard';
+    case 'talent':        return '/talent/dashboard';
+    default:              return '/dashboard';
+  }
+};
+
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const loadProfile = async (userId: string, userEmail: string) => {
+    try {
+      const { data: profile } = await supabase
+        .from('users')
+        .select('*, tenants(subscription_plan)')
+        .eq('id', userId)
+        .single();
+
+      if (profile) {
+        setUser({
+          id: userId,
+          email: userEmail,
+          firstName: profile.first_name || '',
+          lastName: profile.last_name || '',
+          role: profile.role || 'user',
+          tenant: profile.tenant_id,
+          plan: profile.tenants?.subscription_plan,
+        });
+      }
+    } catch (error) {
+      console.error('Profile load error:', error);
+    }
+  };
 
   useEffect(() => {
     const initAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
-          const { data: profile } = await supabase
-            .from('users')
-            .select('*, tenants(subscription_plan)')
-            .eq('id', session.user.id)
-            .single();
-
-          if (profile) {
-            setUser({
-              id: session.user.id,
-              email: session.user.email || '',
-              firstName: profile.first_name || '',
-              lastName: profile.last_name || '',
-              role: profile.role || 'viewer',
-              tenant: profile.tenant_id,
-              plan: profile.tenants?.subscription_plan,
-            });
-          }
+          await loadProfile(session.user.id, session.user.email || '');
         }
       } catch (error) {
         console.error('Auth init error:', error);
@@ -59,27 +80,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
-        try {
-          const { data: profile } = await supabase
-            .from('users')
-            .select('*, tenants(subscription_plan)')
-            .eq('id', session.user.id)
-            .single();
-
-          if (profile) {
-            setUser({
-              id: session.user.id,
-              email: session.user.email || '',
-              firstName: profile.first_name || '',
-              lastName: profile.last_name || '',
-              role: profile.role || 'viewer',
-              tenant: profile.tenant_id,
-              plan: profile.tenants?.subscription_plan,
-            });
-          }
-        } catch (error) {
-          console.error('Profile load error:', error);
-        }
+        await loadProfile(session.user.id, session.user.email || '');
       } else {
         setUser(null);
       }
@@ -101,8 +102,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const isAuthenticated = () => user !== null;
 
+  const getDashboardRoute = () => {
+    if (!user) return '/login';
+    return getDashboardByRole(user.role);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, isAuthenticated }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, isAuthenticated, getDashboardRoute }}>
       {children}
     </AuthContext.Provider>
   );

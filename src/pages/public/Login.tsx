@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth, getDashboardByRole } from '../../contexts/AuthContext';
 import { supabase } from '../../supabase/client';
@@ -15,16 +15,20 @@ const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
 
+  // Redirige dès que user est chargé dans le contexte après login
+  useEffect(() => {
+    if (user && !loading) {
+      navigate(getDashboardByRole(user.role, user.plan), { replace: true });
+    }
+  }, [user, loading, navigate]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
       await login(email, password);
-      // Attendre que le profil soit chargé puis rediriger selon le rôle
-      setTimeout(() => {
-        const role = user?.role || 'user';
-        navigate(getDashboardByRole(role));
-      }, 500);
+      // La redirection se fait via le useEffect ci-dessus
+      // dès que onAuthStateChange met à jour user dans AuthContext
     } catch (err: any) {
       if (err.message?.includes('Invalid login credentials')) {
         toast.error('Email ou mot de passe incorrect');
@@ -33,7 +37,6 @@ const Login: React.FC = () => {
       } else {
         toast.error('Erreur lors de la connexion');
       }
-    } finally {
       setLoading(false);
     }
   };

@@ -22,12 +22,14 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Redirection par rôle
-export const getDashboardByRole = (role: string): string => {
+// Redirection par rôle + plan (le plan government redirige vers /gov)
+export const getDashboardByRole = (role: string, plan?: string): string => {
   switch (role) {
     case 'super_admin':   return '/super-admin/dashboard';
-    case 'admin':         return '/dashboard';
-    case 'manager':       return '/dashboard';
+    case 'admin':
+    case 'tenant_admin':  return plan === 'government' ? '/gov' : '/dashboard';
+    case 'manager':
+    case 'project_manager': return '/dashboard';
     case 'supplier':      return '/supplier/dashboard';
     case 'talent':        return '/talent/dashboard';
     default:              return '/dashboard';
@@ -104,7 +106,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const getDashboardRoute = () => {
     if (!user) return '/login';
-    return getDashboardByRole(user.role);
+    return getDashboardByRole(user.role, user.plan);
   };
 
   return (

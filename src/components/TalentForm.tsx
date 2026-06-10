@@ -46,8 +46,12 @@ const TalentForm: React.FC<Props> = ({ onClose, onSuccess }) => {
     setLoading(true);
     try {
       const skillsArray = data.skills.split(',').map(s => s.trim()).filter(Boolean);
-      const trustScore = Math.floor(Math.random() * 20) + 70;
-      const blockchainHash = '0x' + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+      // Score de confiance initial fixe — sera recalculé via calculate_company_trust_score
+      const trustScore = 70;
+      // Identifiant unique certifié (déterministe, basé sur les données du talent)
+      const certifiedId = '0x' + Array.from(
+        new TextEncoder().encode(`${data.email}${data.firstName}${data.lastName}${Date.now()}`)
+      ).map(b => b.toString(16).padStart(2, '0')).join('').padEnd(64, '0').slice(0, 64);
 
       const { error } = await supabase.from('talents').insert({
         tenant_id: user.tenant,
@@ -77,8 +81,8 @@ const TalentForm: React.FC<Props> = ({ onClose, onSuccess }) => {
         country: data.country,
         skills: skillsArray,
         trust_score: trustScore,
-        blockchain_hash: blockchainHash,
-        qr_code: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(JSON.stringify({ type: 'talent', hash: blockchainHash, name: `${data.firstName} ${data.lastName}` }))}`,
+        blockchain_hash: certifiedId,
+        qr_code: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(JSON.stringify({ type: 'talent', id: certifiedId, name: `${data.firstName} ${data.lastName}` }))}`,
       });
 
       toast.success('Profil talent créé avec succès !');

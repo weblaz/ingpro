@@ -13,28 +13,22 @@ const Pricing: React.FC = () => {
   const [billing, setBilling] = useState<'monthly' | 'annual'>('annual');
   const [loading, setLoading] = useState<string | null>(null);
 
-  const handleSelectPlan = async (planId: string) => {
+  const handleSelectPlan = (planId: string) => {
     if (!user) {
       window.location.href = '/signup';
       return;
     }
-    if (planId === 'government') {
-      window.location.href = '/contact?plan=government';
-      return;
-    }
-    setLoading(planId);
-    try {
-      const { error } = await supabase
-        .from('tenants')
-        .update({ subscription_plan: planId, billing_cycle: billing })
-        .eq('id', user.tenant);
-      if (error) throw error;
-      toast.success(`Plan ${planId} activé avec succès !`);
-    } catch (err: any) {
-      toast.error(err.message || 'Erreur lors du changement de plan');
-    } finally {
-      setLoading(null);
-    }
+    // Tous les changements de plan passent par notre équipe commerciale
+    // pour validation du paiement avant activation
+    const planNames: Record<string, string> = {
+      starter: 'Starter', pro: 'Pro', enterprise: 'Enterprise', government: 'Government',
+    };
+    const planName = planNames[planId] || planId;
+    toast.info(
+      `Demande de passage au plan ${planName} enregistrée. Notre équipe vous contactera sous 24h pour finaliser votre upgrade.`,
+      { autoClose: 6000 }
+    );
+    window.location.href = `/contact?plan=${planId}&billing=${billing}&upgrade=1`;
   };
 
   return (

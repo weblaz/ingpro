@@ -35,6 +35,9 @@ import UpgradePlan from './src/pages/UpgradePlan';
 import Procurement from './src/pages/Procurement';
 import Marketplace from './src/pages/Marketplace';
 import TrainingDashboard from './src/pages/dashboard/TrainingDashboard';
+import SuperAdminDashboard from './src/pages/super-admin/SuperAdminDashboard';
+import SupplierDashboard from './src/pages/supplier/SupplierDashboard';
+import TalentDashboard from './src/pages/talent/TalentDashboard';
 import NotFound from './src/pages/NotFound';
 import DemoCenter from './src/pages/admin/DemoCenter';
 
@@ -103,6 +106,9 @@ const App:React.FC=()=>(
                   <Route path="/admin" element={<ProtectedRoute requiredModule="admin"><Admin/></ProtectedRoute>}/>
                   <Route path="/admin/demo-center" element={<ProtectedRoute requiredModule="admin"><DemoCenter/></ProtectedRoute>}/>
                   <Route path="/billing" element={<ProtectedRoute><Billing/></ProtectedRoute>}/>
+                  <Route path="/super-admin/dashboard" element={<ProtectedRoute><SuperAdminDashboard/></ProtectedRoute>}/>
+                  <Route path="/supplier/dashboard" element={<ProtectedRoute><SupplierDashboard/></ProtectedRoute>}/>
+                  <Route path="/talent/dashboard" element={<ProtectedRoute><TalentDashboard/></ProtectedRoute>}/>
                   <Route path="*" element={<NotFound/>}/>
                 </Routes>
                 <ToastContainer position="top-right" autoClose={3000} newestOnTop closeOnClick pauseOnHover/>
